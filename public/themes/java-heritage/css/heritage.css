@@ -1,0 +1,106 @@
+:root {
+    --cream:#F5EBDD;
+    --gold:#B59A55;
+    --brown:#5A4636;
+    --rose:#C9A19A;
+}
+
+
+/* COVER */
+
+.heritage-cover {
+
+    height:100vh;
+    position:relative;
+    overflow:hidden;
+
+    background:
+    linear-gradient(
+        rgba(245,235,221,.35),
+        rgba(245,235,221,.75)
+    ),
+    url('../images/background.webp');
+
+    background-size:cover;
+    background-position:center;
+
+}
+
+
+.cover-content {
+
+    position:absolute;
+    top:50%;
+    left:50%;
+
+    transform:
+    translate(-50%,-50%);
+
+    text-align:center;
+
+    z-index:5;
+
+}
+
+
+.cover-content .subtitle {
+
+    font-family:
+    "Cormorant Garamond",
+    serif;
+
+    font-size:25px;
+
+    color:var(--brown);
+
+}
+
+
+.cover-content h1 {
+
+    font-family:
+    "Cormorant Garamond",
+    serif;
+
+    font-size:65px;
+
+    line-height:1.1;
+
+    color:var(--brown);
+
+}
+
+
+.cover-date {
+
+    margin-top:20px;
+
+    color:var(--gold);
+
+}
+
+
+.motif-top,
+.motif-bottom {
+
+    position:absolute;
+
+    width:100%;
+
+    z-index:2;
+
+}
+
+
+.motif-top {
+
+    top:0;
+
+}
+
+
+.motif-bottom {
+
+    bottom:0;
+
+}
