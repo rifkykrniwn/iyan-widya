@@ -24,6 +24,7 @@ FROM dunglas/frankenphp:1-php8.4-bookworm AS base
 RUN cp "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini" \
     && install-php-extensions \
         pdo_mysql \
+        pdo_sqlite \
         mbstring \
         exif \
         pcntl \
@@ -53,6 +54,10 @@ RUN composer install \
     --prefer-dist
 
 COPY . .
+
+RUN test -f database/database.sqlite
+
+RUN rm -f bootstrap/cache/config.php
 
 COPY --from=frontend /app/public/build ./public/build
 
