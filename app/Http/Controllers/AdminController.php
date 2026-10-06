@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use Intervention\Image\ImageManager;
+use Intervention\Image\Drivers\Gd\Driver;
 use App\Models\Admin;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -447,12 +449,29 @@ public function storeGallery(Request $request)
     $wedding = \App\Models\Wedding::firstOrFail();
 
     $validated = $request->validate([
-        'image' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
+        'image' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:15360'],
         'caption' => ['nullable', 'string', 'max:255'],
     ]);
 
-    $path = $request->file('image')
-        ->store('images/wedding/gallery', 'public');
+    $file = $request->file('image');
+
+    $manager = new ImageManager(new Driver());
+
+    $image = $manager->decodeSplFileInfo($file);
+
+    // Batasi sisi terpanjang maksimal 2000px
+    $image->scaleDown(width: 2000, height: 2000);
+
+    // Encode ke WebP dengan kualitas 82
+    $encoded = $image->encode(
+    new \Intervention\Image\Encoders\WebpEncoder(quality: 82)
+    );
+
+    $filename = 'gallery-' . uniqid() . '.webp';
+
+    $path = 'images/wedding/gallery/' . $filename;
+
+    \Storage::disk('public')->put($path, $encoded->toString());
 
     $wedding->galleries()->create([
         'image' => 'storage/' . $path,

@@ -228,6 +228,22 @@
                     Kelola akad, resepsi, waktu, dan lokasi acara.
                 </p>
             </a>
+            <a
+                href="{{ route('admin.gallery') }}"
+                class="rounded-3xl bg-white p-6 shadow-sm transition hover:-translate-y-1"
+            >
+                <p class="text-[10px] tracking-[0.25em] text-neutral-400">
+                    KELOLA
+                </p>
+
+                <h2 class="mt-3 text-lg font-light text-neutral-900">
+                    Gallery
+                </h2>
+
+                <p class="mt-2 text-sm text-neutral-500">
+                    Kelola foto-foto gallery undangan.
+                </p>
+            </a>
 
 
             <a
