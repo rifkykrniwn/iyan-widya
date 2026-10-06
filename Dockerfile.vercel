@@ -55,6 +55,9 @@ RUN composer install \
 
 COPY . .
 
+RUN rm -rf public/storage \
+    && ln -s /app/storage/app/public public/storage
+
 RUN test -f database/database.sqlite
 
 RUN rm -f bootstrap/cache/config.php
