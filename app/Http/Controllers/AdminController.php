@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\ImageKitService;
 use Intervention\Image\ImageManager;
 use Intervention\Image\Drivers\Gd\Driver;
 use App\Models\Admin;
@@ -444,7 +445,7 @@ public function gallery()
     return view('admin.gallery', compact('wedding', 'galleries'));
 }
 
-public function storeGallery(Request $request)
+public function storeGallery(Request $request, \App\Services\ImageKitService $imageKit)
 {
     $wedding = \App\Models\Wedding::firstOrFail();
 
@@ -455,26 +456,45 @@ public function storeGallery(Request $request)
 
     $file = $request->file('image');
 
-    $manager = new ImageManager(new Driver());
+    $manager = new \Intervention\Image\ImageManager(
+        new \Intervention\Image\Drivers\Gd\Driver()
+    );
 
     $image = $manager->decodeSplFileInfo($file);
 
-    // Batasi sisi terpanjang maksimal 2000px
     $image->scaleDown(width: 2000, height: 2000);
 
-    // Encode ke WebP dengan kualitas 82
     $encoded = $image->encode(
-    new \Intervention\Image\Encoders\WebpEncoder(quality: 82)
+        new \Intervention\Image\Encoders\WebpEncoder(quality: 82)
     );
 
-    $filename = 'gallery-' . uniqid() . '.webp';
+    $temporaryPath = tempnam(sys_get_temp_dir(), 'gallery-');
 
-    $path = 'images/wedding/gallery/' . $filename;
+    file_put_contents(
+        $temporaryPath,
+        $encoded->toString()
+    );
 
-    \Storage::disk('public')->put($path, $encoded->toString());
+    $temporaryFile = new \Illuminate\Http\UploadedFile(
+        $temporaryPath,
+        'gallery.webp',
+        'image/webp',
+        null,
+        true
+    );
+
+    try {
+        $uploaded = $imageKit->upload(
+            $temporaryFile,
+            '/wedding/gallery'
+        );
+    } finally {
+        @unlink($temporaryPath);
+    }
 
     $wedding->galleries()->create([
-        'image' => 'storage/' . $path,
+        'image' => $uploaded['url'],
+        'imagekit_file_id' => $uploaded['fileId'] ?? null,
         'caption' => $validated['caption'] ?? null,
         'sort_order' => ($wedding->galleries()->max('sort_order') ?? 0) + 1,
     ]);
@@ -483,8 +503,11 @@ public function storeGallery(Request $request)
         ->route('admin.gallery')
         ->with('success', 'Foto gallery berhasil ditambahkan.');
 }
-public function updateGallery(Request $request, \App\Models\Gallery $gallery)
-{
+public function updateGallery(
+    Request $request,
+    \App\Models\Gallery $gallery,
+    \App\Services\ImageKitService $imageKit
+) {
     $wedding = \App\Models\Wedding::firstOrFail();
 
     // Pastikan foto milik wedding yang sedang dikelola
@@ -493,37 +516,111 @@ public function updateGallery(Request $request, \App\Models\Gallery $gallery)
     }
 
     $validated = $request->validate([
-        'image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
+        'image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:15360'],
         'caption' => ['nullable', 'string', 'max:255'],
         'sort_order' => ['required', 'integer', 'min:1'],
     ]);
 
-    // Simpan path foto lama
-    $oldImage = $gallery->image;
+    /*
+     * Jika tidak ada foto baru, cukup update caption/order.
+     */
+    if (!$request->hasFile('image')) {
+        $gallery->update([
+            'caption' => $validated['caption'] ?? null,
+            'sort_order' => $validated['sort_order'],
+        ]);
 
-    // Jika ada foto baru
-    if ($request->hasFile('image')) {
-
-        $path = $request->file('image')
-            ->store('images/wedding/gallery', 'public');
-
-        $validated['image'] = 'storage/' . $path;
+        return redirect()
+            ->route('admin.gallery')
+            ->with('success', 'Foto gallery berhasil diperbarui.');
     }
 
-    // Update database
-    $gallery->update($validated);
+    /*
+     * Simpan data ImageKit lama.
+     * Jangan hapus sebelum foto baru berhasil di-upload
+     * dan database berhasil diperbarui.
+     */
+    $oldImageKitFileId = $gallery->imagekit_file_id;
 
-    // Hapus file foto lama setelah database berhasil diperbarui
-    if (
-        $request->hasFile('image') &&
-        $oldImage &&
-        \Illuminate\Support\Facades\Storage::disk('public')->exists(
-            str_replace('storage/', '', $oldImage)
-        )
-    ) {
-        \Illuminate\Support\Facades\Storage::disk('public')->delete(
-            str_replace('storage/', '', $oldImage)
+    /*
+     * Kompres/konversi foto baru ke WebP.
+     */
+    $file = $request->file('image');
+
+    $manager = new \Intervention\Image\ImageManager(
+        new \Intervention\Image\Drivers\Gd\Driver()
+    );
+
+    $image = $manager->decodeSplFileInfo($file);
+
+    $image->scaleDown(width: 2000, height: 2000);
+
+    $encoded = $image->encode(
+        new \Intervention\Image\Encoders\WebpEncoder(quality: 82)
+    );
+
+    $temporaryPath = tempnam(sys_get_temp_dir(), 'gallery-');
+
+    file_put_contents(
+        $temporaryPath,
+        $encoded->toString()
+    );
+
+    $temporaryFile = new \Illuminate\Http\UploadedFile(
+        $temporaryPath,
+        'gallery.webp',
+        'image/webp',
+        null,
+        true
+    );
+
+    try {
+        /*
+         * Upload foto baru terlebih dahulu.
+         */
+        $uploaded = $imageKit->upload(
+            $temporaryFile,
+            '/wedding/gallery'
         );
+    } finally {
+        @unlink($temporaryPath);
+    }
+
+    /*
+     * Pastikan ImageKit mengembalikan data penting.
+     */
+    if (empty($uploaded['url']) || empty($uploaded['fileId'])) {
+        throw new \RuntimeException(
+            'ImageKit tidak mengembalikan URL atau fileId.'
+        );
+    }
+
+    /*
+     * Update database dengan file baru.
+     */
+    $gallery->update([
+        'image' => $uploaded['url'],
+        'imagekit_file_id' => $uploaded['fileId'],
+        'caption' => $validated['caption'] ?? null,
+        'sort_order' => $validated['sort_order'],
+    ]);
+
+    /*
+     * Baru hapus file lama setelah database berhasil diperbarui.
+     *
+     * Foto lama dari sistem storage lokal tidak disentuh,
+     * karena sebagian Gallery lama mungkin masih menggunakan
+     * storage/... dan belum mempunyai fileId ImageKit.
+     */
+    if ($oldImageKitFileId) {
+        try {
+            $imageKit->delete($oldImageKitFileId);
+        } catch (\Throwable $e) {
+            \Log::warning('Gagal menghapus foto lama dari ImageKit.', [
+                'file_id' => $oldImageKitFileId,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 
     return redirect()
@@ -562,8 +659,10 @@ public function updateGalleryOrder(Request $request)
         ->route('admin.gallery')
         ->with('success', 'Gallery berhasil diperbarui.');
 }
-public function deleteGallery(\App\Models\Gallery $gallery)
-{
+public function deleteGallery(
+    \App\Models\Gallery $gallery,
+    \App\Services\ImageKitService $imageKit
+) {
     $wedding = \App\Models\Wedding::firstOrFail();
 
     // Pastikan foto milik wedding yang sedang dikelola
@@ -571,23 +670,38 @@ public function deleteGallery(\App\Models\Gallery $gallery)
         abort(404);
     }
 
-    // Simpan path foto sebelum record dihapus
+    // Simpan ImageKit file ID sebelum record dihapus
+    $imageKitFileId = $gallery->imagekit_file_id;
+
+    /*
+     * Hapus file dari ImageKit terlebih dahulu.
+     *
+     * Kalau gagal, database tidak ikut dihapus.
+     * Ini mencegah record hilang sementara file masih ada.
+     */
+    if ($imageKitFileId) {
+        $imageKit->delete($imageKitFileId);
+    }
+
+    /*
+     * Untuk Gallery lama yang belum memiliki fileId ImageKit,
+     * kita tetap bersihkan file lokal jika memang masih ada.
+     */
     $image = $gallery->image;
 
-    // Hapus data dari database
-    $gallery->delete();
-
-    // Hapus file fisik dari storage
     if (
         $image &&
-        \Illuminate\Support\Facades\Storage::disk('public')->exists(
-            str_replace('storage/', '', $image)
-        )
+        str_starts_with($image, 'storage/')
     ) {
-        \Illuminate\Support\Facades\Storage::disk('public')->delete(
-            str_replace('storage/', '', $image)
-        );
+        $storagePath = str_replace('storage/', '', $image);
+
+        if (\Illuminate\Support\Facades\Storage::disk('public')->exists($storagePath)) {
+            \Illuminate\Support\Facades\Storage::disk('public')->delete($storagePath);
+        }
     }
+
+    // Setelah file berhasil ditangani, hapus record database
+    $gallery->delete();
 
     return redirect()
         ->route('admin.gallery')

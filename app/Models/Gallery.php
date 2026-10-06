@@ -10,6 +10,7 @@ class Gallery extends Model
     protected $fillable = [
         'wedding_id',
         'image',
+        'imagekit_file_id',
         'caption',
         'sort_order',
     ];
