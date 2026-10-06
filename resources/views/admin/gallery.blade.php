@@ -97,7 +97,7 @@
                     >
 
                     <p class="mt-2 text-xs text-neutral-400">
-                        JPG, PNG, atau WEBP. Maksimal 5 MB.
+                        JPG, PNG, atau WEBP. Foto besar akan otomatis dikompres sebelum upload.
                     </p>
                 </div>
 
@@ -338,3 +338,178 @@
 
 </body>
 </html>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const imageInputs = document.querySelectorAll('input[type="file"][name="image"]');
+
+    imageInputs.forEach((input) => {
+        const form = input.closest('form');
+
+        if (!form) {
+            return;
+        }
+
+        form.addEventListener('submit', async (event) => {
+            const file = input.files[0];
+
+            if (!file) {
+                return;
+            }
+
+            // Foto yang sudah kecil tidak perlu diproses ulang.
+            if (file.size <= 2 * 1024 * 1024) {
+                return;
+            }
+
+            event.preventDefault();
+
+            const submitButton = form.querySelector('button[type="submit"]');
+
+            if (submitButton) {
+                submitButton.disabled = true;
+                submitButton.textContent = 'MEMPROSES FOTO...';
+            }
+
+            try {
+                const compressedFile = await compressImage(file);
+
+                const dataTransfer = new DataTransfer();
+                dataTransfer.items.add(compressedFile);
+
+                input.files = dataTransfer.files;
+
+                if (submitButton) {
+                    submitButton.textContent = 'MENGUPLOAD...';
+                }
+
+                form.submit();
+
+            } catch (error) {
+                console.error('Gagal mengompres foto:', error);
+
+                if (submitButton) {
+                    submitButton.disabled = false;
+                    submitButton.textContent = 'SIMPAN FOTO';
+                }
+
+                alert('Foto gagal diproses. Silakan coba foto lain.');
+            }
+        });
+    });
+
+    async function compressImage(file) {
+        const maxWidth = 2000;
+        const maxHeight = 2000;
+        const maxFileSize = 1.8 * 1024 * 1024;
+
+        const image = await loadImage(file);
+
+        let width = image.naturalWidth;
+        let height = image.naturalHeight;
+
+        // Pertahankan rasio foto
+        if (width > maxWidth || height > maxHeight) {
+            const ratio = Math.min(
+                maxWidth / width,
+                maxHeight / height
+            );
+
+            width = Math.round(width * ratio);
+            height = Math.round(height * ratio);
+        }
+
+        const canvas = document.createElement('canvas');
+
+        canvas.width = width;
+        canvas.height = height;
+
+        const context = canvas.getContext('2d', {
+            alpha: false
+        });
+
+        context.drawImage(image, 0, 0, width, height);
+
+        // Coba WebP terlebih dahulu
+        let quality = 0.82;
+        let blob = await canvasToBlob(
+            canvas,
+            'image/webp',
+            quality
+        );
+
+        // Turunkan kualitas jika masih terlalu besar
+        while (blob.size > maxFileSize && quality > 0.45) {
+            quality -= 0.05;
+
+            blob = await canvasToBlob(
+                canvas,
+                'image/webp',
+                quality
+            );
+        }
+
+        // Fallback jika browser tidak mendukung WebP
+        if (!blob) {
+            quality = 0.82;
+
+            blob = await canvasToBlob(
+                canvas,
+                'image/jpeg',
+                quality
+            );
+
+            while (blob.size > maxFileSize && quality > 0.45) {
+                quality -= 0.05;
+
+                blob = await canvasToBlob(
+                    canvas,
+                    'image/jpeg',
+                    quality
+                );
+            }
+        }
+
+        const extension = blob.type === 'image/webp'
+            ? 'webp'
+            : 'jpg';
+
+        return new File(
+            [blob],
+            `gallery-${Date.now()}.${extension}`,
+            {
+                type: blob.type,
+                lastModified: Date.now()
+            }
+        );
+    }
+
+    function loadImage(file) {
+        return new Promise((resolve, reject) => {
+            const image = new Image();
+            const url = URL.createObjectURL(file);
+
+            image.onload = () => {
+                URL.revokeObjectURL(url);
+                resolve(image);
+            };
+
+            image.onerror = () => {
+                URL.revokeObjectURL(url);
+                reject(new Error('Gagal membaca gambar.'));
+            };
+
+            image.src = url;
+        });
+    }
+
+    function canvasToBlob(canvas, type, quality) {
+        return new Promise((resolve) => {
+            canvas.toBlob(
+                (blob) => resolve(blob),
+                type,
+                quality
+            );
+        });
+    }
+});
+</script>
