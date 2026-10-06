@@ -15,7 +15,7 @@ RUN npm run build
 
 
 # Stage 2: Laravel application
-FROM dunglas/frankenphp:php8.3-bookworm
+FROM dunglas/frankenphp:php8.4-bookworm
 
 RUN install-php-extensions \
     pdo_mysql \
