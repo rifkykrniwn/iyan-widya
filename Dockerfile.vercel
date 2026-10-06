@@ -1,5 +1,5 @@
 # ==========================================
-# Stage 1: Build frontend
+# Stage 1: Build frontend assets
 # ==========================================
 FROM node:22-bookworm AS frontend
 
@@ -17,88 +17,80 @@ RUN npm run build
 
 
 # ==========================================
-# Stage 2: Laravel + FrankenPHP
+# Stage 2: Base PHP / FrankenPHP
 # ==========================================
-FROM dunglas/frankenphp:php8.4-bookworm
+FROM dunglas/frankenphp:1-php8.4-bookworm AS base
 
-RUN install-php-extensions \
-    pdo_mysql \
-    mbstring \
-    exif \
-    pcntl \
-    bcmath \
-    gd \
-    zip \
-    intl
-
-COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+RUN cp "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini" \
+    && install-php-extensions \
+        pdo_mysql \
+        mbstring \
+        exif \
+        pcntl \
+        bcmath \
+        gd \
+        zip \
+        intl
 
 WORKDIR /app
 
 
-# ------------------------------------------
-# Copy Composer files first for Docker cache
-# ------------------------------------------
+# ==========================================
+# Stage 3: Composer dependencies
+# ==========================================
+FROM base AS dependencies
+
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+
 COPY composer.json composer.lock ./
 
-
-# ------------------------------------------
-# Install PHP dependencies WITHOUT scripts
-# artisan belum tersedia pada tahap ini
-# ------------------------------------------
 RUN composer install \
     --no-dev \
     --no-interaction \
-    --prefer-dist \
+    --no-progress \
     --no-scripts \
-    --optimize-autoloader
+    --optimize-autoloader \
+    --prefer-dist
 
-
-# ------------------------------------------
-# Copy seluruh Laravel application
-# ------------------------------------------
 COPY . .
 
-
-# ------------------------------------------
-# Copy Vite production assets
-# ------------------------------------------
 COPY --from=frontend /app/public/build ./public/build
 
-
-# ------------------------------------------
-# Laravel directories
-# ------------------------------------------
 RUN mkdir -p \
-    storage/framework/cache \
-    storage/framework/sessions \
-    storage/framework/views \
-    storage/logs \
-    bootstrap/cache
+        storage/framework/cache \
+        storage/framework/sessions \
+        storage/framework/views \
+        storage/logs \
+        bootstrap/cache
+
+RUN composer dump-autoload \
+    --no-dev \
+    --classmap-authoritative
 
 
-RUN chmod -R 775 storage bootstrap/cache
+# ==========================================
+# Stage 4: Runtime
+# ==========================================
+FROM base AS runtime
 
+COPY --from=dependencies --chown=www-data:www-data /app /app
 
-# ------------------------------------------
-# Sekarang artisan sudah tersedia
-# ------------------------------------------
-RUN composer dump-autoload --optimize
+COPY --chown=www-data:www-data Caddyfile /etc/frankenphp/Caddyfile
 
+RUN chown -R www-data:www-data \
+        /config/caddy \
+        /data/caddy \
+        /app/storage \
+        /app/bootstrap/cache
 
-# ------------------------------------------
-# Laravel optimization
-# ------------------------------------------
-RUN php artisan package:discover --ansi
+ENV PORT=80 \
+    APP_ENV=production \
+    APP_DEBUG=false \
+    LOG_CHANNEL=stderr \
+    CACHE_STORE=array \
+    SESSION_DRIVER=array \
+    QUEUE_CONNECTION=sync
 
-RUN php artisan optimize
+USER www-data
 
-
-# ------------------------------------------
-# FrankenPHP
-# ------------------------------------------
-ENV SERVER_NAME=:80
-
-EXPOSE 80
-
-CMD ["frankenphp", "php-server", "--root", "public", "--listen", ":80"]
+CMD ["frankenphp", "run", "--config", "/etc/frankenphp/Caddyfile"]
