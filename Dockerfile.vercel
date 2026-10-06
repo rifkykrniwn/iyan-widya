@@ -1,4 +1,6 @@
-# Stage 1: Build frontend assets
+# ==========================================
+# Stage 1: Build frontend
+# ==========================================
 FROM node:22-bookworm AS frontend
 
 WORKDIR /app
@@ -14,7 +16,9 @@ COPY public ./public
 RUN npm run build
 
 
-# Stage 2: Laravel application
+# ==========================================
+# Stage 2: Laravel + FrankenPHP
+# ==========================================
 FROM dunglas/frankenphp:php8.4-bookworm
 
 RUN install-php-extensions \
@@ -31,30 +35,70 @@ COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 WORKDIR /app
 
+
+# ------------------------------------------
+# Copy Composer files first for Docker cache
+# ------------------------------------------
 COPY composer.json composer.lock ./
 
+
+# ------------------------------------------
+# Install PHP dependencies WITHOUT scripts
+# artisan belum tersedia pada tahap ini
+# ------------------------------------------
 RUN composer install \
     --no-dev \
     --no-interaction \
     --prefer-dist \
+    --no-scripts \
     --optimize-autoloader
 
+
+# ------------------------------------------
+# Copy seluruh Laravel application
+# ------------------------------------------
 COPY . .
 
+
+# ------------------------------------------
 # Copy Vite production assets
+# ------------------------------------------
 COPY --from=frontend /app/public/build ./public/build
 
-RUN mkdir -p storage/framework/cache \
+
+# ------------------------------------------
+# Laravel directories
+# ------------------------------------------
+RUN mkdir -p \
+    storage/framework/cache \
     storage/framework/sessions \
     storage/framework/views \
+    storage/logs \
     bootstrap/cache
+
 
 RUN chmod -R 775 storage bootstrap/cache
 
+
+# ------------------------------------------
+# Sekarang artisan sudah tersedia
+# ------------------------------------------
+RUN composer dump-autoload --optimize
+
+
+# ------------------------------------------
+# Laravel optimization
+# ------------------------------------------
+RUN php artisan package:discover --ansi
+
 RUN php artisan optimize
 
-ENV SERVER_NAME=:8080
 
-EXPOSE 8080
+# ------------------------------------------
+# FrankenPHP
+# ------------------------------------------
+ENV SERVER_NAME=:80
 
-CMD ["frankenphp", "php-server", "--root", "public", "--listen", ":8080"]
+EXPOSE 80
+
+CMD ["frankenphp", "php-server", "--root", "public", "--listen", ":80"]
