@@ -96,7 +96,7 @@ ENV PORT=80 \
     APP_DEBUG=false \
     LOG_CHANNEL=stderr \
     CACHE_STORE=array \
-    SESSION_DRIVER=array \
+    SESSION_DRIVER=file \
     QUEUE_CONNECTION=sync
 
 USER www-data
