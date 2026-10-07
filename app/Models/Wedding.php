@@ -19,8 +19,11 @@ class Wedding extends Model
         'wedding_date',
         'quote',
         'cover_image',
+        'cover_cloudinary_public_id',
         'bride_image',
+        'bride_cloudinary_public_id',
         'groom_image',
+        'groom_cloudinary_public_id',
         'address',
         'maps_url',
     ];

@@ -359,7 +359,193 @@
         </div>
 
     </div>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const MAX_FILE_SIZE = 1.5 * 1024 * 1024;
+    const MAX_DIMENSION = 1800;
+    const MIN_QUALITY = 0.55;
 
+    const inputs = [
+        'cover_image',
+        'bride_image',
+        'groom_image',
+    ];
+
+    function loadImage(file) {
+        return new Promise((resolve, reject) => {
+            const url = URL.createObjectURL(file);
+            const image = new Image();
+
+            image.onload = () => {
+                URL.revokeObjectURL(url);
+                resolve(image);
+            };
+
+            image.onerror = () => {
+                URL.revokeObjectURL(url);
+                reject(new Error('Gagal membaca gambar.'));
+            };
+
+            image.src = url;
+        });
+    }
+
+    function canvasToBlob(canvas, type, quality) {
+        return new Promise((resolve, reject) => {
+            canvas.toBlob(
+                blob => {
+                    if (blob) {
+                        resolve(blob);
+                    } else {
+                        reject(new Error('Gagal melakukan kompresi gambar.'));
+                    }
+                },
+                type,
+                quality
+            );
+        });
+    }
+
+    async function compressImage(file) {
+        if (!file.type.startsWith('image/')) {
+            return file;
+        }
+
+        const image = await loadImage(file);
+
+        let width = image.naturalWidth;
+        let height = image.naturalHeight;
+
+        const scale = Math.min(
+            1,
+            MAX_DIMENSION / Math.max(width, height)
+        );
+
+        width = Math.round(width * scale);
+        height = Math.round(height * scale);
+
+        let quality = 0.82;
+
+        for (let attempt = 0; attempt < 8; attempt++) {
+            const canvas = document.createElement('canvas');
+
+            canvas.width = width;
+            canvas.height = height;
+
+            const context = canvas.getContext('2d');
+
+            if (!context) {
+                throw new Error('Browser tidak mendukung canvas.');
+            }
+
+            context.drawImage(
+                image,
+                0,
+                0,
+                width,
+                height
+            );
+
+            let blob;
+
+            try {
+                blob = await canvasToBlob(
+                    canvas,
+                    'image/webp',
+                    quality
+                );
+            } catch {
+                blob = await canvasToBlob(
+                    canvas,
+                    'image/jpeg',
+                    quality
+                );
+            }
+
+            if (blob.size <= MAX_FILE_SIZE) {
+                const extension = blob.type === 'image/webp'
+                    ? 'webp'
+                    : 'jpg';
+
+                const filename =
+                    file.name.replace(/\.[^/.]+$/, '') +
+                    '.' +
+                    extension;
+
+                return new File(
+                    [blob],
+                    filename,
+                    {
+                        type: blob.type,
+                        lastModified: Date.now(),
+                    }
+                );
+            }
+
+            if (quality > MIN_QUALITY) {
+                quality = Math.max(
+                    MIN_QUALITY,
+                    quality - 0.07
+                );
+            } else {
+                width = Math.max(
+                    800,
+                    Math.round(width * 0.85)
+                );
+
+                height = Math.max(
+                    800,
+                    Math.round(height * 0.85)
+                );
+            }
+        }
+
+        throw new Error(
+            'Gambar masih terlalu besar setelah dikompresi.'
+        );
+    }
+
+    inputs.forEach(name => {
+        const input = document.querySelector(
+            `input[name="${name}"]`
+        );
+
+        if (!input) {
+            return;
+        }
+
+        input.addEventListener('change', async () => {
+            const file = input.files?.[0];
+
+            if (!file) {
+                return;
+            }
+
+            try {
+                const compressed = await compressImage(file);
+
+                const dataTransfer = new DataTransfer();
+                dataTransfer.items.add(compressed);
+
+                input.files = dataTransfer.files;
+
+                console.log(
+                    `${name}: ${(file.size / 1024 / 1024).toFixed(2)} MB → ` +
+                    `${(compressed.size / 1024 / 1024).toFixed(2)} MB`
+                );
+            } catch (error) {
+                console.error(error);
+
+                alert(
+                    'Gambar gagal dikompresi. Silakan pilih gambar lain.'
+                );
+
+                input.value = '';
+            }
+        });
+    });
+});
+</script>
 </body>
 
 </html>

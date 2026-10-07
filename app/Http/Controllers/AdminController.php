@@ -313,8 +313,10 @@ public function settings()
 
     return view('admin.settings', compact('wedding'));
 }
-public function updateSettings(Request $request)
-{
+public function updateSettings(
+    Request $request,
+    \App\Services\CloudinaryService $cloudinary
+) {
     $wedding = \App\Models\Wedding::firstOrFail();
 
     $validated = $request->validate([
@@ -326,34 +328,121 @@ public function updateSettings(Request $request)
         'quote' => ['nullable', 'string', 'max:1000'],
         'address' => ['nullable', 'string', 'max:500'],
         'maps_url' => ['nullable', 'url', 'max:500'],
-        'cover_image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
-        'bride_image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
-        'groom_image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
+        'cover_image' => [
+            'nullable',
+            'image',
+            'mimes:jpg,jpeg,png,webp',
+            'max:15360',
+        ],
+        'bride_image' => [
+            'nullable',
+            'image',
+            'mimes:jpg,jpeg,png,webp',
+            'max:15360',
+        ],
+        'groom_image' => [
+            'nullable',
+            'image',
+            'mimes:jpg,jpeg,png,webp',
+            'max:15360',
+        ],
     ]);
 
-    if ($request->hasFile('cover_image')) {
+    $imageFields = [
+        'cover_image' => [
+            'public_id_field' => 'cover_cloudinary_public_id',
+            'folder' => 'wedding/settings/cover',
+        ],
+        'bride_image' => [
+            'public_id_field' => 'bride_cloudinary_public_id',
+            'folder' => 'wedding/settings/bride',
+        ],
+        'groom_image' => [
+            'public_id_field' => 'groom_cloudinary_public_id',
+            'folder' => 'wedding/settings/groom',
+        ],
+    ];
 
-        $path = $request->file('cover_image')
-            ->store('images/wedding', 'public');
+    $uploadedImages = [];
 
-        $validated['cover_image'] = 'storage/' . $path;
+    try {
+        foreach ($imageFields as $field => $config) {
+            if (!$request->hasFile($field)) {
+                continue;
+            }
+
+            $file = $request->file($field);
+
+            $image = \Intervention\Image\ImageManager::gd()->read(
+                $file->getRealPath()
+            );
+
+            $image->scaleDown(1800, 1800);
+
+            $tempPath = tempnam(sys_get_temp_dir(), 'wedding_');
+
+            $image->toWebp(quality: 82)->save($tempPath);
+
+            $uploaded = $cloudinary->upload(
+                new \Illuminate\Http\UploadedFile(
+                    $tempPath,
+                    $file->getClientOriginalName(),
+                    'image/webp',
+                    null,
+                    true
+                ),
+                $config['folder']
+            );
+
+            @unlink($tempPath);
+
+            $uploadedImages[$field] = [
+                'url' => $uploaded['url'],
+                'public_id' => $uploaded['public_id'],
+                'old_public_id' => $wedding->{$config['public_id_field']},
+                'public_id_field' => $config['public_id_field'],
+            ];
+        }
+
+        foreach ($uploadedImages as $field => $uploaded) {
+            $validated[$field] = $uploaded['url'];
+            $validated[$uploaded['public_id_field']] = $uploaded['public_id'];
+        }
+
+        $wedding->update($validated);
+
+        foreach ($uploadedImages as $uploaded) {
+            if ($uploaded['old_public_id']) {
+                try {
+                    $cloudinary->delete($uploaded['old_public_id']);
+                } catch (\Throwable $e) {
+                    \Log::warning(
+                        'Gagal menghapus gambar Cloudinary lama dari Settings.',
+                        [
+                            'public_id' => $uploaded['old_public_id'],
+                            'error' => $e->getMessage(),
+                        ]
+                    );
+                }
+            }
+        }
+    } catch (\Throwable $e) {
+        foreach ($uploadedImages as $uploaded) {
+            try {
+                $cloudinary->delete($uploaded['public_id']);
+            } catch (\Throwable $cleanupError) {
+                \Log::warning(
+                    'Gagal membersihkan upload Cloudinary setelah error Settings.',
+                    [
+                        'public_id' => $uploaded['public_id'],
+                        'error' => $cleanupError->getMessage(),
+                    ]
+                );
+            }
+        }
+
+        throw $e;
     }
-    if ($request->hasFile('bride_image')) {
-
-    $path = $request->file('bride_image')
-        ->store('images/wedding', 'public');
-
-    $validated['bride_image'] = 'storage/' . $path;
-}
-
-if ($request->hasFile('groom_image')) {
-
-    $path = $request->file('groom_image')
-        ->store('images/wedding', 'public');
-
-    $validated['groom_image'] = 'storage/' . $path;
-}
-    $wedding->update($validated);
 
     return redirect()
         ->route('admin.settings')
