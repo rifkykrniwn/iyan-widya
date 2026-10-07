@@ -79,8 +79,10 @@
             class="
                 w-full
                 max-w-xl
+                -translate-y-12
                 text-center
                 text-white
+                sm:translate-y-0
             "
         >
 
@@ -105,7 +107,7 @@
                 class="
                     mt-5
                     font-serif
-                    text-5xl
+                    text-4xl
                     font-normal
                     leading-none
                     tracking-wide
@@ -123,7 +125,7 @@
 
             <div
                 class="
-                    my-3
+                    my-2
                     font-serif
                     text-2xl
                     italic
@@ -140,7 +142,7 @@
             <h1
                 class="
                     font-serif
-                    text-5xl
+                    text-4xl
                     font-normal
                     leading-none
                     tracking-wide
@@ -171,7 +173,7 @@
 
             <p
                 class="
-                    mt-5
+                    mt-4
                     text-[10px]
                     font-medium
                     tracking-[0.3em]
