@@ -379,11 +379,18 @@ public function updateSettings(
                 $file->getRealPath()
             );
 
-            $image->scaleDown(1800, 1800);
+           $image->scaleDown(width: 1800, height: 1800);
+
+            $encoded = $image->encode(
+                new \Intervention\Image\Encoders\WebpEncoder(quality: 82)
+            );
 
             $tempPath = tempnam(sys_get_temp_dir(), 'wedding_');
 
-            $image->toWebp(quality: 82)->save($tempPath);
+            file_put_contents(
+                $tempPath,
+                $encoded->toString()
+            );
 
             $uploaded = $cloudinary->upload(
                 new \Illuminate\Http\UploadedFile(
