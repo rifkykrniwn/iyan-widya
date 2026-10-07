@@ -360,16 +360,19 @@
 
     </div>
 <script>
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener("DOMContentLoaded", () => {
     const MAX_FILE_SIZE = 3 * 1024 * 1024;
     const MAX_DIMENSION = 2560;
     const MIN_QUALITY = 0.78;
 
     const inputs = [
-        'cover_image',
-        'bride_image',
-        'groom_image',
+        "cover_image",
+        "bride_image",
+        "groom_image",
     ];
+
+    const form = document.querySelector("form");
+    let pendingCompression = 0;
 
     function loadImage(file) {
         return new Promise((resolve, reject) => {
@@ -383,7 +386,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             image.onerror = () => {
                 URL.revokeObjectURL(url);
-                reject(new Error('Gagal membaca gambar.'));
+                reject(new Error("Gagal membaca gambar."));
             };
 
             image.src = url;
@@ -397,7 +400,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (blob) {
                         resolve(blob);
                     } else {
-                        reject(new Error('Gagal melakukan kompresi gambar.'));
+                        reject(new Error("Gagal melakukan kompresi gambar."));
                     }
                 },
                 type,
@@ -407,7 +410,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function compressImage(file) {
-        if (!file.type.startsWith('image/')) {
+        if (!file.type.startsWith("image/")) {
             return file;
         }
 
@@ -427,49 +430,42 @@ document.addEventListener('DOMContentLoaded', () => {
         let quality = 0.92;
 
         for (let attempt = 0; attempt < 8; attempt++) {
-            const canvas = document.createElement('canvas');
-
+            const canvas = document.createElement("canvas");
             canvas.width = width;
             canvas.height = height;
 
-            const context = canvas.getContext('2d');
+            const context = canvas.getContext("2d");
 
             if (!context) {
-                throw new Error('Browser tidak mendukung canvas.');
+                throw new Error("Browser tidak mendukung canvas.");
             }
 
-            context.drawImage(
-                image,
-                0,
-                0,
-                width,
-                height
-            );
+            context.drawImage(image, 0, 0, width, height);
 
             let blob;
 
             try {
                 blob = await canvasToBlob(
                     canvas,
-                    'image/webp',
+                    "image/webp",
                     quality
                 );
             } catch {
                 blob = await canvasToBlob(
                     canvas,
-                    'image/jpeg',
+                    "image/jpeg",
                     quality
                 );
             }
 
             if (blob.size <= MAX_FILE_SIZE) {
-                const extension = blob.type === 'image/webp'
-                    ? 'webp'
-                    : 'jpg';
+                const extension = blob.type === "image/webp"
+                    ? "webp"
+                    : "jpg";
 
                 const filename =
-                    file.name.replace(/\.[^/.]+$/, '') +
-                    '.' +
+                    file.name.replace(/\.[^/.]+$/, "") +
+                    "." +
                     extension;
 
                 return new File(
@@ -494,7 +490,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         throw new Error(
-            'Gambar masih terlalu besar setelah dikompresi.'
+            "Gambar masih terlalu besar setelah dikompresi."
         );
     }
 
@@ -507,12 +503,15 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        input.addEventListener('change', async () => {
+        input.addEventListener("change", async () => {
             const file = input.files?.[0];
 
             if (!file) {
                 return;
             }
+
+            pendingCompression++;
+            input.dataset.compressing = "true";
 
             try {
                 const compressed = await compressImage(file);
@@ -529,14 +528,37 @@ document.addEventListener('DOMContentLoaded', () => {
             } catch (error) {
                 console.error(error);
 
-                alert(
-                    'Gambar gagal dikompresi. Silakan pilih gambar lain.'
-                );
+                input.value = "";
 
-                input.value = '';
+                alert(
+                    "Gambar gagal dikompresi. Silakan pilih gambar lain."
+                );
+            } finally {
+                input.dataset.compressing = "false";
+                pendingCompression--;
             }
         });
     });
+
+    if (form) {
+        form.addEventListener("submit", event => {
+            const stillCompressing = inputs.some(name => {
+                const input = document.querySelector(
+                    `input[name="${name}"]`
+                );
+
+                return input?.dataset.compressing === "true";
+            });
+
+            if (pendingCompression > 0 || stillCompressing) {
+                event.preventDefault();
+
+                alert(
+                    "Foto masih sedang diproses. Tunggu sebentar lalu tekan Simpan lagi."
+                );
+            }
+        });
+    }
 });
 </script>
 </body>

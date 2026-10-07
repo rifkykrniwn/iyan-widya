@@ -103,6 +103,14 @@
             <div class="flex flex-wrap gap-2">
 
                 {{-- Tambah Tamu --}}
+                {{-- Import Excel --}}
+                <a
+                    href="{{ route('admin.guests.import') }}"
+                    class="px-4 py-2 rounded-xl bg-white border border-neutral-200 text-sm hover:bg-neutral-50"
+                >
+                    📥 Import Excel
+                </a>
+
                 <a
                     href="{{ route('admin.guests.create') }}"
                     class="px-4 py-2 rounded-xl bg-neutral-900 text-white text-sm hover:bg-neutral-800"

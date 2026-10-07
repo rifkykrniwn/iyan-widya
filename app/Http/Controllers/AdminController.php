@@ -195,6 +195,34 @@ public function rsvps(Request $request)
         'status'
     ));
 }
+public function importGuestsForm()
+{
+    return view('admin.guests-import');
+}
+
+public function importGuests(\Illuminate\Http\Request $request)
+{
+    $wedding = \App\Models\Wedding::firstOrFail();
+
+    $request->validate([
+        'file' => [
+            'required',
+            'file',
+            'extensions:xlsx,xls,csv',
+            'max:5120',
+        ],
+    ]);
+
+    \Maatwebsite\Excel\Facades\Excel::import(
+        new \App\Imports\GuestsImport($wedding),
+        $request->file('file')
+    );
+
+    return redirect()
+        ->route('admin.guests')
+        ->with('success', 'Tamu berhasil diimport.');
+}
+
 public function createGuest()
 {
     return view('admin.guests-create');
@@ -208,7 +236,34 @@ public function storeGuest(Request $request)
         'phone' => ['nullable', 'string', 'max:20'],
     ]);
 
-    $baseSlug = \Illuminate\Support\Str::slug($validated['name']);
+    $name = trim($validated['name']);
+    $phone = $this->normalizeGuestPhone(
+        trim($validated['phone'] ?? '')
+    );
+
+    $duplicate = $wedding->guests()
+        ->whereRaw(
+            'LOWER(TRIM(name)) = ?',
+            [mb_strtolower($name)]
+        )
+        ->where(function ($query) use ($phone) {
+            if ($phone === null) {
+                $query->whereNull('phone');
+            } else {
+                $query->where('phone', $phone);
+            }
+        })
+        ->exists();
+
+    if ($duplicate) {
+        return back()
+            ->withErrors([
+                'phone' => 'Tamu dengan nama dan nomor HP tersebut sudah terdaftar.',
+            ])
+            ->withInput();
+    }
+
+    $baseSlug = \Illuminate\Support\Str::slug($name);
 
     $slug = $baseSlug;
     $counter = 2;
@@ -223,14 +278,41 @@ public function storeGuest(Request $request)
     }
 
     $wedding->guests()->create([
-        'name' => $validated['name'],
+        'name' => $name,
         'slug' => $slug,
-        'phone' => $validated['phone'] ?? null,
+        'phone' => $phone,
     ]);
 
     return redirect()
         ->route('admin.guests')
         ->with('success', 'Tamu berhasil ditambahkan.');
+}
+
+private function normalizeGuestPhone(string $phone): ?string
+{
+    if ($phone === '') {
+        return null;
+    }
+
+    $phone = preg_replace('/[^0-9+]/', '', $phone);
+
+    if ($phone === '') {
+        return null;
+    }
+
+    if (str_starts_with($phone, '+62')) {
+        return '0' . substr($phone, 3);
+    }
+
+    if (str_starts_with($phone, '62')) {
+        return '0' . substr($phone, 2);
+    }
+
+    if (str_starts_with($phone, '8')) {
+        return '0' . $phone;
+    }
+
+    return $phone;
 }
 public function editGuest($guest)
 {
@@ -258,7 +340,35 @@ public function updateGuest(Request $request, $guest)
         'phone' => ['nullable', 'string', 'max:20'],
     ]);
 
-    $baseSlug = \Illuminate\Support\Str::slug($validated['name']);
+    $name = trim($validated['name']);
+    $phone = $this->normalizeGuestPhone(
+        trim($validated['phone'] ?? '')
+    );
+
+    $duplicate = $wedding->guests()
+        ->where('id', '!=', $guest->id)
+        ->whereRaw(
+            'LOWER(TRIM(name)) = ?',
+            [mb_strtolower($name)]
+        )
+        ->where(function ($query) use ($phone) {
+            if ($phone === null) {
+                $query->whereNull('phone');
+            } else {
+                $query->where('phone', $phone);
+            }
+        })
+        ->exists();
+
+    if ($duplicate) {
+        return back()
+            ->withErrors([
+                'phone' => 'Tamu dengan nama dan nomor HP tersebut sudah terdaftar.',
+            ])
+            ->withInput();
+    }
+
+    $baseSlug = \Illuminate\Support\Str::slug($name);
 
     $slug = $baseSlug;
     $counter = 2;
@@ -274,9 +384,9 @@ public function updateGuest(Request $request, $guest)
     }
 
     $guest->update([
-        'name' => $validated['name'],
+        'name' => $name,
         'slug' => $slug,
-        'phone' => $validated['phone'] ?? null,
+        'phone' => $phone,
     ]);
 
     return redirect()

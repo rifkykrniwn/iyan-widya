@@ -34,6 +34,12 @@ Route::middleware('admin')->prefix('admin')->group(function () {
     Route::get('/guests', [AdminController::class, 'guests'])
         ->name('admin.guests');
 
+Route::get('/guests/import', [AdminController::class, 'importGuestsForm'])
+    ->name('admin.guests.import');
+
+Route::post('/guests/import', [AdminController::class, 'importGuests'])
+    ->name('admin.guests.import.store');
+
     Route::get('/guests/create', [AdminController::class, 'createGuest'])
         ->name('admin.guests.create');
 

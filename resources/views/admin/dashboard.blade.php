@@ -245,6 +245,24 @@
                 </p>
             </a>
 
+            <a
+                href="{{ route('admin.guests') }}"
+                class="rounded-3xl bg-white p-6 shadow-sm transition hover:-translate-y-1"
+            >
+                <p class="text-[10px] tracking-[0.25em] text-neutral-400">
+                    KELOLA
+                </p>
+
+                <h2 class="mt-3 text-lg font-light text-neutral-900">
+                    Daftar Tamu
+                </h2>
+
+                <p class="mt-2 text-sm text-neutral-500">
+                    Kelola tamu, nomor HP, dan link undangan.
+                </p>
+            </a>
+
+
 
             <a
                 href="{{ route('admin.rsvps') }}"
