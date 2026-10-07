@@ -373,7 +373,9 @@ public function updateSettings(
 
             $file = $request->file($field);
 
-            $image = \Intervention\Image\ImageManager::gd()->read(
+            $image = \Intervention\Image\ImageManager::usingDriver(
+                \Intervention\Image\Drivers\Gd\Driver::class
+            )->decodePath(
                 $file->getRealPath()
             );
 
