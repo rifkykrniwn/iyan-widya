@@ -10,7 +10,6 @@ class Gallery extends Model
     protected $fillable = [
     'wedding_id',
     'image',
-    'imagekit_file_id',
     'cloudinary_public_id',
     'caption',
     'sort_order',

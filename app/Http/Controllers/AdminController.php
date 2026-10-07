@@ -2,8 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Services\ImageKitService;
-use Intervention\Image\ImageManager;
 use Intervention\Image\Drivers\Gd\Driver;
 use App\Models\Admin;
 use Illuminate\Http\Request;
@@ -539,10 +537,10 @@ public function updateGallery(
     }
 
     /*
-     * Simpan data ImageKit lama.
-     * Jangan hapus sebelum foto baru berhasil di-upload
-     * dan database berhasil diperbarui.
-     */
+    * Simpan public_id Cloudinary lama.
+    * Jangan hapus sebelum foto baru berhasil di-upload
+    * dan database berhasil diperbarui.
+    */
     $oldCloudinaryPublicId = $gallery->cloudinary_public_id;
 
     /*
@@ -590,7 +588,7 @@ public function updateGallery(
     }
 
     /*
-     * Pastikan ImageKit mengembalikan data penting.
+     * Pastikan Cloudinary mengembalikan data penting.
      */
     if (empty($uploaded['url']) || empty($uploaded['public_id'])) {
     throw new \RuntimeException(
@@ -609,12 +607,12 @@ public function updateGallery(
 ]);
 
     /*
-     * Baru hapus file lama setelah database berhasil diperbarui.
-     *
-     * Foto lama dari sistem storage lokal tidak disentuh,
-     * karena sebagian Gallery lama mungkin masih menggunakan
-     * storage/... dan belum mempunyai fileId ImageKit.
-     */
+    * Baru hapus file lama setelah database berhasil diperbarui.
+    *
+    * Foto lama dari sistem storage lokal tidak disentuh,
+    * karena sebagian Gallery lama mungkin masih menggunakan
+    * storage/...
+    */
     if ($oldCloudinaryPublicId) {
     try {
         $cloudinary->delete($oldCloudinaryPublicId);
@@ -673,17 +671,18 @@ public function deleteGallery(
         abort(404);
     }
 
-    // Simpan ImageKit file ID sebelum record dihapus
+    // Simpan public_id Cloudinary sebelum record dihapus
     $cloudinaryPublicId = $gallery->cloudinary_public_id;
 
-if ($cloudinaryPublicId) {
-    $cloudinary->delete($cloudinaryPublicId);
-}
+    if ($cloudinaryPublicId) {
+        $cloudinary->delete($cloudinaryPublicId);
+    }
 
     /*
-     * Untuk Gallery lama yang belum memiliki fileId ImageKit,
-     * kita tetap bersihkan file lokal jika memang masih ada.
-     */
+    /*
+    * Untuk Gallery lama yang masih menggunakan storage lokal,
+    * kita tetap bersihkan file lokal jika memang masih ada.
+    */
     $image = $gallery->image;
 
     if (
