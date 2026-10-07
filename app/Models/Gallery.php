@@ -8,11 +8,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class Gallery extends Model
 {
     protected $fillable = [
-        'wedding_id',
-        'image',
-        'imagekit_file_id',
-        'caption',
-        'sort_order',
+    'wedding_id',
+    'image',
+    'imagekit_file_id',
+    'cloudinary_public_id',
+    'caption',
+    'sort_order',
     ];
 
     public function wedding(): BelongsTo

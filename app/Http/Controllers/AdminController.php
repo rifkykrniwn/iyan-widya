@@ -445,7 +445,10 @@ public function gallery()
     return view('admin.gallery', compact('wedding', 'galleries'));
 }
 
-public function storeGallery(Request $request, \App\Services\ImageKitService $imageKit)
+public function storeGallery(
+    Request $request,
+    \App\Services\CloudinaryService $cloudinary
+)
 {
     $wedding = \App\Models\Wedding::firstOrFail();
 
@@ -484,20 +487,20 @@ public function storeGallery(Request $request, \App\Services\ImageKitService $im
     );
 
     try {
-        $uploaded = $imageKit->upload(
-            $temporaryFile,
-            '/wedding/gallery'
-        );
+        $uploaded = $cloudinary->upload(
+    $temporaryFile,
+    'wedding/gallery'
+);
     } finally {
         @unlink($temporaryPath);
     }
 
     $wedding->galleries()->create([
-        'image' => $uploaded['url'],
-        'imagekit_file_id' => $uploaded['fileId'] ?? null,
-        'caption' => $validated['caption'] ?? null,
-        'sort_order' => ($wedding->galleries()->max('sort_order') ?? 0) + 1,
-    ]);
+    'image' => $uploaded['url'],
+    'cloudinary_public_id' => $uploaded['public_id'],
+    'caption' => $validated['caption'] ?? null,
+    'sort_order' => ($wedding->galleries()->max('sort_order') ?? 0) + 1,
+]);
 
     return redirect()
         ->route('admin.gallery')
@@ -506,7 +509,7 @@ public function storeGallery(Request $request, \App\Services\ImageKitService $im
 public function updateGallery(
     Request $request,
     \App\Models\Gallery $gallery,
-    \App\Services\ImageKitService $imageKit
+    \App\Services\CloudinaryService $cloudinary
 ) {
     $wedding = \App\Models\Wedding::firstOrFail();
 
@@ -540,7 +543,7 @@ public function updateGallery(
      * Jangan hapus sebelum foto baru berhasil di-upload
      * dan database berhasil diperbarui.
      */
-    $oldImageKitFileId = $gallery->imagekit_file_id;
+    $oldCloudinaryPublicId = $gallery->cloudinary_public_id;
 
     /*
      * Kompres/konversi foto baru ke WebP.
@@ -578,10 +581,10 @@ public function updateGallery(
         /*
          * Upload foto baru terlebih dahulu.
          */
-        $uploaded = $imageKit->upload(
-            $temporaryFile,
-            '/wedding/gallery'
-        );
+        $uploaded = $cloudinary->upload(
+    $temporaryFile,
+    'wedding/gallery'
+);
     } finally {
         @unlink($temporaryPath);
     }
@@ -589,21 +592,21 @@ public function updateGallery(
     /*
      * Pastikan ImageKit mengembalikan data penting.
      */
-    if (empty($uploaded['url']) || empty($uploaded['fileId'])) {
-        throw new \RuntimeException(
-            'ImageKit tidak mengembalikan URL atau fileId.'
-        );
-    }
+    if (empty($uploaded['url']) || empty($uploaded['public_id'])) {
+    throw new \RuntimeException(
+        'Cloudinary tidak mengembalikan URL atau public_id.'
+    );
+}
 
     /*
      * Update database dengan file baru.
      */
     $gallery->update([
-        'image' => $uploaded['url'],
-        'imagekit_file_id' => $uploaded['fileId'],
-        'caption' => $validated['caption'] ?? null,
-        'sort_order' => $validated['sort_order'],
-    ]);
+    'image' => $uploaded['url'],
+    'cloudinary_public_id' => $uploaded['public_id'],
+    'caption' => $validated['caption'] ?? null,
+    'sort_order' => $validated['sort_order'],
+]);
 
     /*
      * Baru hapus file lama setelah database berhasil diperbarui.
@@ -612,16 +615,16 @@ public function updateGallery(
      * karena sebagian Gallery lama mungkin masih menggunakan
      * storage/... dan belum mempunyai fileId ImageKit.
      */
-    if ($oldImageKitFileId) {
-        try {
-            $imageKit->delete($oldImageKitFileId);
-        } catch (\Throwable $e) {
-            \Log::warning('Gagal menghapus foto lama dari ImageKit.', [
-                'file_id' => $oldImageKitFileId,
-                'error' => $e->getMessage(),
-            ]);
-        }
+    if ($oldCloudinaryPublicId) {
+    try {
+        $cloudinary->delete($oldCloudinaryPublicId);
+    } catch (\Throwable $e) {
+        \Log::warning('Gagal menghapus file Cloudinary lama.', [
+            'public_id' => $oldCloudinaryPublicId,
+            'error' => $e->getMessage(),
+        ]);
     }
+}
 
     return redirect()
         ->route('admin.gallery')
@@ -661,7 +664,7 @@ public function updateGalleryOrder(Request $request)
 }
 public function deleteGallery(
     \App\Models\Gallery $gallery,
-    \App\Services\ImageKitService $imageKit
+    \App\Services\CloudinaryService $cloudinary
 ) {
     $wedding = \App\Models\Wedding::firstOrFail();
 
@@ -671,17 +674,11 @@ public function deleteGallery(
     }
 
     // Simpan ImageKit file ID sebelum record dihapus
-    $imageKitFileId = $gallery->imagekit_file_id;
+    $cloudinaryPublicId = $gallery->cloudinary_public_id;
 
-    /*
-     * Hapus file dari ImageKit terlebih dahulu.
-     *
-     * Kalau gagal, database tidak ikut dihapus.
-     * Ini mencegah record hilang sementara file masih ada.
-     */
-    if ($imageKitFileId) {
-        $imageKit->delete($imageKitFileId);
-    }
+if ($cloudinaryPublicId) {
+    $cloudinary->delete($cloudinaryPublicId);
+}
 
     /*
      * Untuk Gallery lama yang belum memiliki fileId ImageKit,
