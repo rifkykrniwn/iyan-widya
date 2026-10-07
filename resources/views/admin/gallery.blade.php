@@ -340,7 +340,9 @@
 </html>
 <script>
 document.addEventListener('DOMContentLoaded', () => {
-    const imageInputs = document.querySelectorAll('input[type="file"][name="image"]');
+    const imageInputs = document.querySelectorAll(
+        'input[type="file"][name="image"]'
+    );
 
     imageInputs.forEach((input) => {
         const form = input.closest('form');
@@ -356,14 +358,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            // Foto yang sudah kecil tidak perlu diproses ulang.
-            if (file.size <= 2 * 1024 * 1024) {
-                return;
-            }
-
             event.preventDefault();
 
-            const submitButton = form.querySelector('button[type="submit"]');
+            const submitButton = form.querySelector(
+                'button[type="submit"]'
+            );
 
             if (submitButton) {
                 submitButton.disabled = true;
@@ -385,88 +384,131 @@ document.addEventListener('DOMContentLoaded', () => {
                 form.submit();
 
             } catch (error) {
-                console.error('Gagal mengompres foto:', error);
+                console.error(
+                    'Gagal mengompres foto:',
+                    error
+                );
 
                 if (submitButton) {
                     submitButton.disabled = false;
                     submitButton.textContent = 'SIMPAN FOTO';
                 }
 
-                alert('Foto gagal diproses. Silakan coba foto lain.');
+                alert(
+                    'Foto gagal diproses. Silakan pilih foto lain.'
+                );
             }
         });
     });
 
     async function compressImage(file) {
-        const maxWidth = 2000;
-        const maxHeight = 2000;
-        const maxFileSize = 1.8 * 1024 * 1024;
+        const MAX_FILE_SIZE = 1.5 * 1024 * 1024;
+        const MIN_QUALITY = 0.55;
 
         const image = await loadImage(file);
 
         let width = image.naturalWidth;
         let height = image.naturalHeight;
 
-        // Pertahankan rasio foto
-        if (width > maxWidth || height > maxHeight) {
+        // Batasi ukuran awal foto.
+        const MAX_DIMENSION = 1800;
+
+        if (
+            width > MAX_DIMENSION ||
+            height > MAX_DIMENSION
+        ) {
             const ratio = Math.min(
-                maxWidth / width,
-                maxHeight / height
+                MAX_DIMENSION / width,
+                MAX_DIMENSION / height
             );
 
             width = Math.round(width * ratio);
             height = Math.round(height * ratio);
         }
 
-        const canvas = document.createElement('canvas');
-
-        canvas.width = width;
-        canvas.height = height;
-
-        const context = canvas.getContext('2d', {
-            alpha: false
-        });
-
-        context.drawImage(image, 0, 0, width, height);
-
-        // Coba WebP terlebih dahulu
         let quality = 0.82;
-        let blob = await canvasToBlob(
-            canvas,
-            'image/webp',
-            quality
-        );
+        let blob = null;
 
-        // Turunkan kualitas jika masih terlalu besar
-        while (blob.size > maxFileSize && quality > 0.45) {
-            quality -= 0.05;
+        // Maksimal beberapa kali percobaan.
+        for (let attempt = 0; attempt < 8; attempt++) {
+
+            const canvas = document.createElement('canvas');
+
+            canvas.width = width;
+            canvas.height = height;
+
+            const context = canvas.getContext('2d', {
+                alpha: false
+            });
+
+            if (!context) {
+                throw new Error(
+                    'Browser tidak mendukung pemrosesan gambar.'
+                );
+            }
+
+            context.imageSmoothingEnabled = true;
+            context.imageSmoothingQuality = 'high';
+
+            context.drawImage(
+                image,
+                0,
+                0,
+                width,
+                height
+            );
 
             blob = await canvasToBlob(
                 canvas,
                 'image/webp',
                 quality
             );
-        }
 
-        // Fallback jika browser tidak mendukung WebP
-        if (!blob) {
-            quality = 0.82;
-
-            blob = await canvasToBlob(
-                canvas,
-                'image/jpeg',
-                quality
-            );
-
-            while (blob.size > maxFileSize && quality > 0.45) {
-                quality -= 0.05;
-
+            // Browser tidak mendukung WebP.
+            if (!blob) {
                 blob = await canvasToBlob(
                     canvas,
                     'image/jpeg',
                     quality
                 );
             }
+
+            if (!blob) {
+                throw new Error(
+                    'Browser gagal membuat file hasil kompresi.'
+                );
+            }
+
+            // Sudah cukup kecil.
+            if (blob.size <= MAX_FILE_SIZE) {
+                break;
+            }
+
+            // Pertama-tama turunkan kualitas.
+            if (quality > MIN_QUALITY) {
+                quality -= 0.07;
+                continue;
+            }
+
+            // Jika kualitas sudah cukup rendah,
+            // turunkan dimensi foto.
+            width = Math.round(width * 0.85);
+            height = Math.round(height * 0.85);
+
+            quality = 0.72;
+        }
+
+        if (!blob) {
+            throw new Error(
+                'Foto gagal dikompres.'
+            );
+        }
+
+        // Pengaman terakhir.
+        if (blob.size > MAX_FILE_SIZE) {
+            throw new Error(
+                'Foto masih terlalu besar setelah dikompres.'
+            );
         }
 
         const extension = blob.type === 'image/webp'
@@ -486,6 +528,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function loadImage(file) {
         return new Promise((resolve, reject) => {
             const image = new Image();
+
             const url = URL.createObjectURL(file);
 
             image.onload = () => {
@@ -495,14 +538,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
             image.onerror = () => {
                 URL.revokeObjectURL(url);
-                reject(new Error('Gagal membaca gambar.'));
+
+                reject(
+                    new Error(
+                        'Gagal membaca gambar.'
+                    )
+                );
             };
 
             image.src = url;
         });
     }
 
-    function canvasToBlob(canvas, type, quality) {
+    function canvasToBlob(
+        canvas,
+        type,
+        quality
+    ) {
         return new Promise((resolve) => {
             canvas.toBlob(
                 (blob) => resolve(blob),
