@@ -42,11 +42,11 @@
 
     @include('wedding.sections.location')
 
-    @include('wedding.sections.wishes')
-
     @include('wedding.sections.gift')
 
     @include('wedding.sections.rsvp')
+
+    @include('wedding.sections.wishes')
 
 
 <div id="navigationWrapper" class="hidden">

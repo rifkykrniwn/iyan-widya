@@ -146,36 +146,6 @@
             </span>
         </a>
 
-
-        {{-- =====================================================
-             WISHES
-        ====================================================== --}}
-        <a
-            href="#wishes"
-            data-nav-target="wishes"
-            data-nav-label="Wishes"
-            class="nav-item"
-            aria-label="Wishes"
-        >
-            <span class="nav-tooltip">
-                Wishes
-            </span>
-
-            <span class="nav-button">
-                <svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="1.8"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                >
-                    <path d="M20.8 8.8c0 5.5-8.8 10-8.8 10s-8.8-4.5-8.8-10A4.8 4.8 0 0 1 12 6.1a4.8 4.8 0 0 1 8.8 2.7Z"/>
-                </svg>
-            </span>
-        </a>
-
-
         {{-- =====================================================
              GIFT
         ====================================================== --}}
@@ -251,7 +221,33 @@
                 </svg>
             </span>
         </a>
+        {{-- =====================================================
+             WISHES
+        ====================================================== --}}
+        <a
+            href="#wishes"
+            data-nav-target="wishes"
+            data-nav-label="Wishes"
+            class="nav-item"
+            aria-label="Wishes"
+        >
+            <span class="nav-tooltip">
+                Wishes
+            </span>
 
+            <span class="nav-button">
+                <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                >
+                    <path d="M20.8 8.8c0 5.5-8.8 10-8.8 10s-8.8-4.5-8.8-10A4.8 4.8 0 0 1 12 6.1a4.8 4.8 0 0 1 8.8 2.7Z"/>
+                </svg>
+            </span>
+        </a>
     </div>
 </nav>
 

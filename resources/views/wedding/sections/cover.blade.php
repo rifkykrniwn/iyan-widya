@@ -195,6 +195,8 @@
                     bottom-8
                     left-1/2
                     -translate-x-1/2
+                    translate-y-12
+                    sm:translate-y-0
                 "
             >
 
