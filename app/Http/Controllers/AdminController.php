@@ -365,93 +365,66 @@ public function updateSettings(
 
     $uploadedImages = [];
 
-    try {
-        foreach ($imageFields as $field => $config) {
-            if (!$request->hasFile($field)) {
-                continue;
-            }
-
-            $file = $request->file($field);
-
-            $image = \Intervention\Image\ImageManager::usingDriver(
-                \Intervention\Image\Drivers\Gd\Driver::class
-            )->decodePath(
-                $file->getRealPath()
-            );
-
-           $image->scaleDown(width: 1800, height: 1800);
-
-            $encoded = $image->encode(
-                new \Intervention\Image\Encoders\WebpEncoder(quality: 82)
-            );
-
-            $tempPath = tempnam(sys_get_temp_dir(), 'wedding_');
-
-            file_put_contents(
-                $tempPath,
-                $encoded->toString()
-            );
-
-            $uploaded = $cloudinary->upload(
-                new \Illuminate\Http\UploadedFile(
-                    $tempPath,
-                    $file->getClientOriginalName(),
-                    'image/webp',
-                    null,
-                    true
-                ),
-                $config['folder']
-            );
-
-            @unlink($tempPath);
-
-            $uploadedImages[$field] = [
-                'url' => $uploaded['url'],
-                'public_id' => $uploaded['public_id'],
-                'old_public_id' => $wedding->{$config['public_id_field']},
-                'public_id_field' => $config['public_id_field'],
-            ];
+try {
+    foreach ($imageFields as $field => $config) {
+        if (!$request->hasFile($field)) {
+            continue;
         }
 
-        foreach ($uploadedImages as $field => $uploaded) {
-            $validated[$field] = $uploaded['url'];
-            $validated[$uploaded['public_id_field']] = $uploaded['public_id'];
-        }
+        $file = $request->file($field);
 
-        $wedding->update($validated);
+        $uploaded = $cloudinary->upload(
+            $file,
+            $config['folder']
+        );
 
-        foreach ($uploadedImages as $uploaded) {
-            if ($uploaded['old_public_id']) {
-                try {
-                    $cloudinary->delete($uploaded['old_public_id']);
-                } catch (\Throwable $e) {
-                    \Log::warning(
-                        'Gagal menghapus gambar Cloudinary lama dari Settings.',
-                        [
-                            'public_id' => $uploaded['old_public_id'],
-                            'error' => $e->getMessage(),
-                        ]
-                    );
-                }
-            }
-        }
-    } catch (\Throwable $e) {
-        foreach ($uploadedImages as $uploaded) {
+        $uploadedImages[$field] = [
+            'url' => $uploaded['url'],
+            'public_id' => $uploaded['public_id'],
+            'old_public_id' => $wedding->{$config['public_id_field']},
+            'public_id_field' => $config['public_id_field'],
+        ];
+    }
+
+    foreach ($uploadedImages as $field => $uploaded) {
+        $validated[$field] = $uploaded['url'];
+        $validated[$uploaded['public_id_field']] = $uploaded['public_id'];
+    }
+
+    $wedding->update($validated);
+
+    foreach ($uploadedImages as $uploaded) {
+        if ($uploaded['old_public_id']) {
             try {
-                $cloudinary->delete($uploaded['public_id']);
-            } catch (\Throwable $cleanupError) {
+                $cloudinary->delete($uploaded['old_public_id']);
+            } catch (\Throwable $e) {
                 \Log::warning(
-                    'Gagal membersihkan upload Cloudinary setelah error Settings.',
+                    'Gagal menghapus gambar Cloudinary lama dari Settings.',
                     [
-                        'public_id' => $uploaded['public_id'],
-                        'error' => $cleanupError->getMessage(),
+                        'public_id' => $uploaded['old_public_id'],
+                        'error' => $e->getMessage(),
                     ]
                 );
             }
         }
-
-        throw $e;
     }
+} catch (\Throwable $e) {
+    foreach ($uploadedImages as $uploaded) {
+        try {
+            $cloudinary->delete($uploaded['public_id']);
+        } catch (\Throwable $cleanupError) {
+            \Log::warning(
+                'Gagal membersihkan upload Cloudinary setelah error Settings.',
+                [
+                    'public_id' => $uploaded['public_id'],
+                    'error' => $cleanupError->getMessage(),
+                ]
+            );
+        }
+    }
+
+    throw $e;
+}
 
     return redirect()
         ->route('admin.settings')

@@ -361,9 +361,9 @@
     </div>
 <script>
 document.addEventListener('DOMContentLoaded', () => {
-    const MAX_FILE_SIZE = 1.5 * 1024 * 1024;
-    const MAX_DIMENSION = 1800;
-    const MIN_QUALITY = 0.55;
+    const MAX_FILE_SIZE = 3 * 1024 * 1024;
+    const MAX_DIMENSION = 2560;
+    const MIN_QUALITY = 0.78;
 
     const inputs = [
         'cover_image',
@@ -424,7 +424,7 @@ document.addEventListener('DOMContentLoaded', () => {
         width = Math.round(width * scale);
         height = Math.round(height * scale);
 
-        let quality = 0.82;
+        let quality = 0.92;
 
         for (let attempt = 0; attempt < 8; attempt++) {
             const canvas = document.createElement('canvas');
@@ -488,15 +488,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     quality - 0.07
                 );
             } else {
-                width = Math.max(
-                    800,
-                    Math.round(width * 0.85)
-                );
-
-                height = Math.max(
-                    800,
-                    Math.round(height * 0.85)
-                );
+                width = Math.round(width * 0.9);
+                height = Math.round(height * 0.9);
             }
         }
 
