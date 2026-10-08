@@ -323,7 +323,7 @@
                                             id="link-{{ $guest->id }}"
                                             type="text"
                                             readonly
-                                            value="{{ url($wedding->slug . '/' . $guest->slug) }}"
+                                            value="{{ url($guest->slug) }}"
                                             class="w-64 px-3 py-2 rounded-lg border border-neutral-200 bg-neutral-50 text-xs"
                                         >
 
@@ -353,7 +353,7 @@
             $phone = '62' . substr($phone, 1);
         }
 
-        $invitationUrl = url($wedding->slug . '/' . $guest->slug);
+        $invitationUrl = url($guest->slug);
 
         $message = "Halo {$guest->name},\n\n"
             . "Kami mengundang Anda untuk hadir di acara pernikahan kami.\n\n"
@@ -586,7 +586,7 @@
                             id="mobile-link-{{ $guest->id }}"
                             type="text"
                             readonly
-                            value="{{ url($wedding->slug . '/' . $guest->slug) }}"
+                            value="{{ url($guest->slug)}}"
                             class="w-full px-3 py-2 rounded-lg border border-neutral-200 bg-neutral-50 text-xs"
                         >
 
@@ -606,7 +606,7 @@
             $phone = '62' . substr($phone, 1);
         }
 
-        $invitationUrl = url($wedding->slug . '/' . $guest->slug);
+        $$invitationUrl = url($guest->slug);
 
         $message = "Halo {$guest->name},\n\n"
             . "Kami mengundang Anda untuk hadir di acara pernikahan kami.\n\n"

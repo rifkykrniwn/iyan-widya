@@ -315,7 +315,7 @@
                 </p>
             </a>
             <a
-                href="{{ url('/' . $wedding->slug) }}"
+                href="{{ url('/') }}"
                 target="_blank"
                 class="rounded-3xl bg-neutral-900 p-6 text-white shadow-sm transition hover:-translate-y-1"
             >

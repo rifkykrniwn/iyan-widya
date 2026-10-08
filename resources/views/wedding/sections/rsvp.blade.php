@@ -163,10 +163,9 @@
             <form
                 action="{{ request()->route('guestSlug')
                     ? route('wedding.guest.rsvp', [
-                        'slug' => $wedding->slug,
                         'guestSlug' => request()->route('guestSlug'),
                     ])
-                    : route('wedding.rsvp', $wedding->slug) }}"
+                    : route('wedding.rsvp') }}"
                 method="POST"
                 class="rsvp-form"
             >

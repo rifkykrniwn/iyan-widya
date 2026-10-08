@@ -114,14 +114,11 @@ Route::post('/guests/import', [AdminController::class, 'importGuests'])
 Route::get('/', [WeddingController::class, 'home'])
     ->name('wedding.home');
 
-Route::post('/{slug}/rsvp', [RsvpController::class, 'store'])
+Route::post('/rsvp', [RsvpController::class, 'store'])
     ->name('wedding.rsvp');
 
-Route::post('/{slug}/{guestSlug}/rsvp', [RsvpController::class, 'storeForGuest'])
+Route::post('/{guestSlug}/rsvp', [RsvpController::class, 'storeForGuest'])
     ->name('wedding.guest.rsvp');
 
-Route::get('/{slug}/{guestSlug}', [WeddingController::class, 'showGuest'])
+Route::get('/{guestSlug}', [WeddingController::class, 'showGuestShort'])
     ->name('wedding.guest');
-
-Route::get('/{slug}', [WeddingController::class, 'show'])
-    ->name('wedding.show');

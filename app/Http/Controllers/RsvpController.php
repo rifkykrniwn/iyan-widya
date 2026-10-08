@@ -2,16 +2,14 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Rsvp;
 use App\Models\Wedding;
 use Illuminate\Http\Request;
 
 class RsvpController extends Controller
 {
-    public function store(Request $request, string $slug)
+    public function store(Request $request)
     {
-        $wedding = Wedding::where('slug', $slug)
-            ->firstOrFail();
+        $wedding = Wedding::firstOrFail();
 
         $validated = $request->validate([
             'name' => [
@@ -41,43 +39,62 @@ class RsvpController extends Controller
 
         $wedding->rsvps()->create($validated);
 
-return redirect()
-    ->route('wedding.show', $wedding->slug)
-    ->withFragment('wishes')
-    ->with('success', 'Terima kasih, RSVP Anda telah berhasil dikirim.');
-        }
-        public function storeForGuest(
-    Request $request,
-    string $slug,
-    string $guestSlug
-) {
-    $wedding = Wedding::where('slug', $slug)
-        ->firstOrFail();
+        return redirect('/')
+            ->withFragment('wishes')
+            ->with(
+                'success',
+                'Terima kasih, RSVP Anda telah berhasil dikirim.'
+            );
+    }
 
-    $guest = $wedding->guests()
-        ->where('slug', $guestSlug)
-        ->firstOrFail();
+    public function storeForGuest(
+        Request $request,
+        string $guestSlug
+    ) {
+        $wedding = Wedding::firstOrFail();
 
-    $validated = $request->validate([
-        'name' => ['required', 'string', 'max:100'],
-        'attendance' => ['required', 'in:hadir,tidak_hadir,ragu'],
-        'guest_count' => ['required', 'integer', 'min:1', 'max:10'],
-        'message' => ['nullable', 'string', 'max:500'],
-    ]);
+        $guest = $wedding->guests()
+            ->where('slug', $guestSlug)
+            ->firstOrFail();
 
-    $validated['guest_id'] = $guest->id;
+        $validated = $request->validate([
+            'name' => [
+                'required',
+                'string',
+                'max:100',
+            ],
 
-    $wedding->rsvps()->create($validated);
+            'attendance' => [
+                'required',
+                'in:hadir,tidak_hadir,ragu',
+            ],
 
-    return redirect()
-        ->route('wedding.guest', [
-            'slug' => $wedding->slug,
-            'guestSlug' => $guest->slug,
-        ])
-        ->withFragment('wishes')
-        ->with(
-            'success',
-            'Terima kasih, RSVP Anda telah berhasil dikirim.'
-        );
-}
+            'guest_count' => [
+                'required',
+                'integer',
+                'min:1',
+                'max:10',
+            ],
+
+            'message' => [
+                'nullable',
+                'string',
+                'max:500',
+            ],
+        ]);
+
+        $validated['guest_id'] = $guest->id;
+
+        $wedding->rsvps()->create($validated);
+
+        return redirect()
+            ->route('wedding.guest', [
+                'guestSlug' => $guest->slug,
+            ])
+            ->withFragment('wishes')
+            ->with(
+                'success',
+                'Terima kasih, RSVP Anda telah berhasil dikirim.'
+            );
+    }
 }

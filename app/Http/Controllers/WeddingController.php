@@ -6,26 +6,6 @@ use App\Models\Wedding;
 
 class WeddingController extends Controller
 {
-    public function show(string $slug)
-    {
-        $wedding = Wedding::with([
-            'events',
-            'galleries',
-            'rsvps',
-            'gifts',
-            'guests',
-        ])
-            ->where('slug', $slug)
-            ->firstOrFail();
-
-        $guestName = request()->query('to', 'Tamu Undangan');
-
-        return view('wedding.index', compact(
-            'wedding',
-            'guestName'
-        ));
-    }
-
     public function home()
     {
         $wedding = Wedding::with([
@@ -44,19 +24,15 @@ class WeddingController extends Controller
         ));
     }
 
-    public function showGuest(
-        string $slug,
-        string $guestSlug
-    ) {
+    public function showGuestShort(string $guestSlug)
+    {
         $wedding = Wedding::with([
             'events',
             'galleries',
             'rsvps',
             'gifts',
             'guests',
-        ])
-            ->where('slug', $slug)
-            ->firstOrFail();
+        ])->firstOrFail();
 
         $guest = $wedding->guests()
             ->where('slug', $guestSlug)
