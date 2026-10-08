@@ -3,7 +3,6 @@
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\RsvpController;
 use App\Http\Controllers\WeddingController;
-use App\Models\Wedding;
 use Illuminate\Support\Facades\Route;
 
 
@@ -112,13 +111,8 @@ Route::post('/guests/import', [AdminController::class, 'importGuests'])
 |--------------------------------------------------------------------------
 */
 
-Route::get('/', function () {
-    $wedding = Wedding::firstOrFail();
-
-    return redirect()->route('wedding.show', [
-        'slug' => $wedding->slug,
-    ]);
-});
+Route::get('/', [WeddingController::class, 'home'])
+    ->name('wedding.home');
 
 Route::post('/{slug}/rsvp', [RsvpController::class, 'store'])
     ->name('wedding.rsvp');

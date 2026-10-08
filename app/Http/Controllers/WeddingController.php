@@ -26,6 +26,24 @@ class WeddingController extends Controller
         ));
     }
 
+    public function home()
+    {
+        $wedding = Wedding::with([
+            'events',
+            'galleries',
+            'rsvps',
+            'gifts',
+            'guests',
+        ])->firstOrFail();
+
+        $guestName = request()->query('to', 'Tamu Undangan');
+
+        return view('wedding.index', compact(
+            'wedding',
+            'guestName'
+        ));
+    }
+
     public function showGuest(
         string $slug,
         string $guestSlug
