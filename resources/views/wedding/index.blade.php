@@ -38,7 +38,7 @@
 
     @include('wedding.sections.countdown')
 
-    @include('wedding.sections.story')
+    <!-- @include('wedding.sections.story') -->
 
     @include('wedding.sections.location')
 

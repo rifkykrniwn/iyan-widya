@@ -75,6 +75,10 @@
         "
     >
 
+        {{-- =================================================
+             NAMA PENGANTIN
+        ================================================== --}}
+
         <div
             class="
                 w-full
@@ -155,20 +159,6 @@
                 {{ $wedding->groom_name }}
             </h1>
 
-
-            {{-- DIVIDER --}}
-
-            <div
-                class="
-                    mx-auto
-                    mt-8
-                    h-px
-                    w-20
-                    bg-[#e4c47d]/60
-                "
-            ></div>
-
-
             {{-- DATE --}}
 
             <p
@@ -184,70 +174,72 @@
                 {{ $wedding->wedding_date->format('d · m · Y') }}
             </p>
 
+        </div>
 
-            {{-- =================================================
-                 SCROLL
-            ================================================== --}}
+
+        {{-- =================================================
+             SCROLL INDICATOR
+             DILETAKKAN DI LUAR CONTAINER NAMA
+        ================================================== --}}
+
+        <div
+            class="
+                absolute
+                bottom-6
+                left-1/2
+                z-20
+                -translate-x-1/2
+            "
+        >
 
             <div
                 class="
-                    absolute
-                    bottom-8
-                    left-1/2
-                    -translate-x-1/2
-                    translate-y-12
-                    sm:translate-y-0
+                    flex
+                    flex-col
+                    items-center
                 "
             >
 
+                {{-- Animated line --}}
+
                 <div
                     class="
-                        flex
-                        flex-col
-                        items-center
+                        relative
+                        h-12
+                        w-px
+                        overflow-hidden
+                        bg-white/30
                     "
                 >
 
-                    {{-- animated line --}}
-
-                    <div
+                    <span
                         class="
-                            relative
-                            h-12
+                            absolute
+                            left-0
+                            top-0
+                            h-5
                             w-px
-                            overflow-hidden
-                            bg-white/30
+                            bg-[#f2d27e]
+                            animate-scroll-line
                         "
-                    >
-
-                        <span
-                            class="
-                                absolute
-                                left-0
-                                top-0
-                                h-5
-                                w-px
-                                bg-[#f2d27e]
-                                animate-scroll-line
-                            "
-                        ></span>
-
-                    </div>
-
-
-                    <p
-                        class="
-                            mt-3
-                            text-[8px]
-                            font-medium
-                            tracking-[0.45em]
-                            text-white/80
-                        "
-                    >
-                        SCROLL
-                    </p>
+                    ></span>
 
                 </div>
+
+
+                {{-- SCROLL TEXT --}}
+
+                <p
+                    class="
+                        mt-3
+                        text-[8px]
+                        font-medium
+                        tracking-[0.45em]
+                        text-white/80
+                    "
+                >
+                    SCROLL
+                </p>
 
             </div>
 
