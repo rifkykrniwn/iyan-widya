@@ -1,4 +1,3 @@
-```php
 <?php
 
 namespace App\Imports;
@@ -136,4 +135,3 @@ class GuestsImport implements ToCollection, WithHeadingRow
         return $phone;
     }
 }
-```
