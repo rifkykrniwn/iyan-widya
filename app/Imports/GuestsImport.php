@@ -1,3 +1,4 @@
+```php
 <?php
 
 namespace App\Imports;
@@ -5,7 +6,9 @@ namespace App\Imports;
 use App\Models\Guest;
 use App\Models\Wedding;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use InvalidArgumentException;
 use Maatwebsite\Excel\Concerns\ToCollection;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
 
@@ -14,60 +17,95 @@ class GuestsImport implements ToCollection, WithHeadingRow
     public function __construct(
         private Wedding $wedding
     ) {
+        if (!$this->wedding->exists || !$this->wedding->getKey()) {
+            throw new InvalidArgumentException(
+                'Data wedding tidak valid untuk proses import.'
+            );
+        }
     }
 
     public function collection(Collection $rows): void
     {
+        $weddingId = $this->wedding->getKey();
+
+        // Ambil data tamu yang sudah ada hanya sekali.
+        $existingGuests = Guest::where('wedding_id', $weddingId)
+            ->get(['name', 'phone', 'slug']);
+
+        $duplicateKeys = [];
+        $usedSlugs = [];
+
+        foreach ($existingGuests as $guest) {
+            $nameKey = mb_strtolower(trim($guest->name));
+
+            $duplicateKeys[serialize([
+                $nameKey,
+                $guest->phone,
+            ])] = true;
+
+            $usedSlugs[$guest->slug] = true;
+        }
+
+        $toInsert = [];
+
         foreach ($rows as $row) {
             $name = trim((string) ($row['nama'] ?? ''));
-            $phone = $this->normalizePhone(
-                trim((string) ($row['phone'] ?? ''))
-            );
 
             if ($name === '') {
                 continue;
             }
 
-            /*
-             * Duplikat berdasarkan nama + nomor HP.
-             *
-             * Nama sama + nomor sama  = skip
-             * Nama sama + nomor beda = tetap import
-             */
-            $duplicate = Guest::where('wedding_id', $this->wedding->id)
-                ->whereRaw('LOWER(TRIM(name)) = ?', [mb_strtolower($name)])
-                ->where(function ($query) use ($phone) {
-                    if ($phone === null) {
-                        $query->whereNull('phone');
-                    } else {
-                        $query->where('phone', $phone);
-                    }
-                })
-                ->exists();
+            $phone = $this->normalizePhone(
+                trim((string) ($row['phone'] ?? ''))
+            );
 
-            if ($duplicate) {
+            // Cegah duplikat berdasarkan nama dan nomor HP.
+            $nameKey = mb_strtolower($name);
+
+            $duplicateKey = serialize([
+                $nameKey,
+                $phone,
+            ]);
+
+            if (isset($duplicateKeys[$duplicateKey])) {
                 continue;
             }
 
+            // Tandai langsung agar duplikat dalam file yang sama ikut dilewati.
+            $duplicateKeys[$duplicateKey] = true;
+
+            // Buat slug unik tanpa query berulang.
             $baseSlug = Str::slug($name);
+
+            if ($baseSlug === '') {
+                $baseSlug = 'tamu';
+            }
+
             $slug = $baseSlug;
             $counter = 2;
 
-            while (
-                Guest::where('wedding_id', $this->wedding->id)
-                    ->where('slug', $slug)
-                    ->exists()
-            ) {
+            while (isset($usedSlugs[$slug])) {
                 $slug = $baseSlug . '-' . $counter;
                 $counter++;
             }
 
-            Guest::create([
-                'wedding_id' => $this->wedding->id,
+            $usedSlugs[$slug] = true;
+
+            $toInsert[] = [
+                'wedding_id' => $weddingId,
                 'name' => $name,
                 'slug' => $slug,
                 'phone' => $phone,
-            ]);
+                'created_at' => now(),
+                'updated_at' => now(),
+            ];
+        }
+
+        // Simpan semua tamu baru sekaligus.
+        if (!empty($toInsert)) {
+            DB::transaction(function () use ($toInsert) {
+                Guest::insert($toInsert);
+            });
         }
     }
 
@@ -77,7 +115,7 @@ class GuestsImport implements ToCollection, WithHeadingRow
             return null;
         }
 
-        $phone = preg_replace('/[^0-9+]/', '', $phone);
+        $phone = (string) preg_replace('/[^0-9+]/', '', $phone);
 
         if ($phone === '') {
             return null;
@@ -98,3 +136,4 @@ class GuestsImport implements ToCollection, WithHeadingRow
         return $phone;
     }
 }
+```
